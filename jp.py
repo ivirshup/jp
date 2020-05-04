@@ -17,7 +17,7 @@ import json
 from subprocess import run, PIPE
 import requests
 from pathlib import Path
-from functools import singledispatch
+from functools import singledispatch, partial
 
 
 class ServerInterface(object):
@@ -32,21 +32,28 @@ class ServerInterface(object):
         return requests.get(full_url).json()
 
 
-# TODO Will fail if more than one server is running.
-def running_server() -> ServerInterface:
+# TODO: Better error messages
+def running_server(port=None) -> ServerInterface:
     """
     Returns object describing running server.
     """
     p = run(["jupyter", "notebook", "list", "--json"], stdout=PIPE)
     procs = list(map(json.loads, p.stdout.decode("utf-8").split("\n")[:-1]))
-    procs = list(filter(lambda x: x["notebook_dir"].startswith("/Users/isaac"), procs))
+    user_home = str(Path.home())
+
+    if port is None and len(procs) > 1:
+        # Heuristic for default home.
+        procs = [x for x in procs if x["notebook_dir"].startswith(user_home)]
+    else:
+        procs = [x for x in procs if x["port"] == int(port)]
     if len(procs) == 1:
         return ServerInterface(procs[0])
     elif len(procs) == 0:
-        raise OSError("No jupyter servers under /Users/isaac could be found!")
+        raise OSError("No jupyter servers could be found!")
     else:
+        procs_rep = '\n'.join(str(procs))
         raise NotImplementedError(
-            f"{len(procs)} servers found! Not able to tell which one to use."
+            f"{len(procs)} servers found! Not able to tell which one to use from:\n {procs_rep}"
         )
 
 
@@ -106,6 +113,7 @@ def format_kernel_json(kernel_dict):
 
 import click
 
+port = click.option("--port", help="Port used by jupyter server.", default=None)
 
 @click.group()
 def cli():
@@ -113,30 +121,29 @@ def cli():
 
 
 @cli.command(name="list", help="List running kernels")
-def list_kernels():
-    s = running_server()
+@port
+def list_kernels(*, port):
+    s = running_server(port)
     click.echo(show_running_kernels(s.running_kernels()))
 
 
 @cli.command(name="join", help="Join an existing kernel by name")
 @click.argument("name")
-@click.option("-n", "--notebook", is_flag=True)
-def join_kernel(name, notebook):
+@port
+def join_kernel(name, *, port):
     """Join running kernel by notebook name."""
-    s = running_server()
+    s = running_server(port)
     kernels = s.running_kernels()
     to_join = kernel_lookup(kernels, name)
-    if notebook:
-        command = ["open", f"{s['url']}notebooks/{to_join['path']}"]
-    elif not notebook:
-        command = ["jupyter", "console", "--existing", format_kernel_json(to_join)]
+    command = ["jupyter", "console", "--existing", format_kernel_json(to_join)]
     run(command)
 
 
 @cli.command(name="open", help="Open jupyter notebook browser at path.")
 @click.argument("path", required=False)
-def open_browser(path=None):
-    s = running_server()
+@port
+def open_browser(path=None, *, port):
+    s = running_server(port)
     if path is None:
         path = "."
 
