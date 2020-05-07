@@ -17,7 +17,6 @@ import json
 from subprocess import run, PIPE
 import requests
 from pathlib import Path
-from functools import singledispatch, partial
 
 
 class ServerInterface(object):
@@ -51,9 +50,9 @@ def running_server(port=None) -> ServerInterface:
     elif len(procs) == 0:
         raise OSError("No jupyter servers could be found!")
     else:
-        procs_rep = '\n'.join(str(procs))
+        procs_rep = '\n\t'.join(map(str, procs))
         raise NotImplementedError(
-            f"{len(procs)} servers found! Not able to tell which one to use from:\n {procs_rep}"
+            f"{len(procs)} servers found! Not able to tell which one to use from:\n\n\t{procs_rep}"
         )
 
 
