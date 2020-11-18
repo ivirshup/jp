@@ -50,7 +50,7 @@ def running_server(port=None) -> ServerInterface:
     elif len(procs) == 0:
         raise OSError("No jupyter servers could be found!")
     else:
-        procs_rep = '\n\t'.join(map(str, procs))
+        procs_rep = "\n\t".join(map(str, procs))
         raise NotImplementedError(
             f"{len(procs)} servers found! Not able to tell which one to use from:\n\n\t{procs_rep}"
         )
@@ -112,7 +112,8 @@ def format_kernel_json(kernel_dict):
 
 import click
 
-port = click.option("--port", help="Port used by jupyter server.", default=None)
+port = click.option("--port", help="Port used by jupyter server.", default="8888")
+
 
 @click.group()
 def cli():
@@ -126,8 +127,25 @@ def list_kernels(*, port):
     click.echo(show_running_kernels(s.running_kernels()))
 
 
+def join_arg_complete(ctx, args, incomplete):
+    """Argument completion for `jp join`"""
+    # TODO: There must be a better way to get default values
+    port = ctx.params["port"] if ctx.params.get("port", None) is not None else "8888"
+    kernels = running_server(port).running_kernels()
+
+    matching_kernels = []
+    for kernel in kernels:
+        name = Path(kernel["path"]).stem
+        if incomplete in name:
+            path = kernel["path"]
+            kernel_type = kernel["kernel"]["name"]
+            matching_kernels.append((name, f"{kernel_type} at '{path}'"))
+
+    return matching_kernels
+
+
 @cli.command(name="join", help="Join an existing kernel by name")
-@click.argument("name")
+@click.argument("name", type=click.STRING, autocompletion=join_arg_complete)
 @port
 def join_kernel(name, *, port):
     """Join running kernel by notebook name."""
