@@ -112,7 +112,9 @@ def format_kernel_json(kernel_dict):
 
 import click
 
-port = click.option("--port", help="Port used by jupyter server.", default="8888")
+port = click.option(
+    "--port", help="Port used by jupyter server.", default="8888", is_eager=True
+)
 
 
 @click.group()
@@ -127,7 +129,7 @@ def list_kernels(*, port):
     click.echo(show_running_kernels(s.running_kernels()))
 
 
-def join_arg_complete(ctx, args, incomplete):
+def running_arg_complete(ctx, args, incomplete):
     """Argument completion for `jp join`"""
     # TODO: There must be a better way to get default values
     port = ctx.params["port"] if ctx.params.get("port", None) is not None else "8888"
@@ -145,7 +147,7 @@ def join_arg_complete(ctx, args, incomplete):
 
 
 @cli.command(name="join", help="Join an existing kernel by name")
-@click.argument("name", type=click.STRING, autocompletion=join_arg_complete)
+@click.argument("name", type=click.STRING, autocompletion=running_arg_complete)
 @port
 def join_kernel(name, *, port):
     """Join running kernel by notebook name."""
@@ -154,6 +156,19 @@ def join_kernel(name, *, port):
     to_join = kernel_lookup(kernels, name)
     command = ["jupyter", "console", "--existing", format_kernel_json(to_join)]
     run(command)
+
+
+@cli.command(name="kill", help="Kill an running kernel.")
+@click.argument("name", type=click.STRING, autocompletion=running_arg_complete)
+@port
+def kill_kernel(name, *, port):
+    s = running_server(port)
+    kernels = s.running_kernels()
+    to_kill = kernel_lookup(kernels, name)
+    r = requests.delete(
+        f"{s.url}api/kernels/{to_kill['kernel']['id']}?token={s.token}"
+    )
+    return r
 
 
 @cli.command(name="open", help="Open jupyter notebook browser at path.")
