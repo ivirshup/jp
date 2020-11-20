@@ -36,6 +36,7 @@ Then run that from `.zshrc`
 
 - [x] Better tab completion, and with `zsh` support
     - [ ] Can I get this with argparse?
-- [ ] Specify port when multiple servers are running
+- [x] Specify port when multiple servers are running
+- [ ] Handle multiple servers running
 - [ ] Check how well this works with jupyter lab
 - [ ] Tests
