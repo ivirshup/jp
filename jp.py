@@ -14,10 +14,12 @@ Things I want this to do:
 """
 
 import json
+from shutil import get_terminal_size
 from subprocess import run, PIPE
+from pathlib import Path
+
 import requests
 from tabulate import tabulate
-from pathlib import Path
 
 
 class ServerInterface(object):
@@ -61,10 +63,21 @@ def show_running_kernels(kernels, *, verbose: int = 0):
     paths = [x["path"] for x in kernels]
     table = {
         "KernelName": [Path(x).stem for x in paths],
-        "Kernel": [x["kernel"]["name"] for x in kernels]
+        "Kernel": [x["kernel"]["name"] for x in kernels],
     }
     if verbose:
         table["Path"] = [str(x) for x in paths]
+    if verbose == 1:  # Make sure table prints to terminal width
+        lines = tabulate(table, headers="keys").splitlines()
+        col_limit = get_terminal_size().columns
+        col_max = max(map(len, lines))
+        path_col_idx = lines[0].rfind("Path")
+        if col_max > col_limit:
+            path_col_size = col_limit - path_col_idx
+            table["Path"] = [
+                "..." + x[-path_col_size + 3 :] if len(x) > path_col_size else x
+                for x in table["Path"]
+            ]
     return tabulate(table, headers="keys")
 
 
@@ -155,9 +168,7 @@ def kill_kernel(name, *, port):
     s = running_server(port)
     kernels = s.running_kernels()
     to_kill = kernel_lookup(kernels, name)
-    r = requests.delete(
-        f"{s.url}api/kernels/{to_kill['kernel']['id']}?token={s.token}"
-    )
+    r = requests.delete(f"{s.url}api/kernels/{to_kill['kernel']['id']}?token={s.token}")
     return r
 
 
