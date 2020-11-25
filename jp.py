@@ -16,6 +16,7 @@ Things I want this to do:
 import json
 from subprocess import run, PIPE
 import requests
+from tabulate import tabulate
 from pathlib import Path
 
 
@@ -56,27 +57,15 @@ def running_server(port=None) -> ServerInterface:
         )
 
 
-def show_running_kernels(kernels):
-    report = ""
+def show_running_kernels(kernels, *, verbose: int = 0):
     paths = [x["path"] for x in kernels]
-    names = [Path(x).stem for x in paths]
-    kerneltype = [x["kernel"]["name"] for x in kernels]
-    #     last_activity # Include for sorting?
-    namemaxlength = max(len(x) for x in names)
-    namemaxlength = max(namemaxlength, len("KernelName"))
-    typemaxlength = max(len(x) for x in kerneltype)
-    typemaxlength = max(typemaxlength, len("Kernel"))
-    topline = "{}\t{}".format(
-        "KernelName".ljust(namemaxlength), "Kernel".ljust(typemaxlength)
-    )
-    sep = "-" * (len(topline) + 2)
-    report += f"{topline}\n"
-    report += f"{sep}\n"
-    for i in range(0, len(names)):
-        report += "{}\t{}\n".format(
-            names[i].ljust(namemaxlength), kerneltype[i].ljust(typemaxlength)
-        )
-    return report
+    table = {
+        "KernelName": [Path(x).stem for x in paths],
+        "Kernel": [x["kernel"]["name"] for x in kernels]
+    }
+    if verbose:
+        table["Path"] = [str(x) for x in paths]
+    return tabulate(table, headers="keys")
 
 
 def kernel_lookup(kernels, name):
@@ -124,9 +113,10 @@ def cli():
 
 @cli.command(name="list", help="List running kernels")
 @port
-def list_kernels(*, port):
+@click.option("-v", "--verbose", help="Increase verbosity", count=True)
+def list_kernels(*, port, verbose):
     s = running_server(port)
-    click.echo(show_running_kernels(s.running_kernels()))
+    click.echo(show_running_kernels(s.running_kernels(), verbose=verbose))
 
 
 def running_arg_complete(ctx, args, incomplete):
