@@ -134,23 +134,26 @@ def list_kernels(*, port, verbose):
 
 def running_arg_complete(ctx, args, incomplete):
     """Argument completion for `jp join`"""
+    from click.shell_completion import CompletionItem
+
     # TODO: There must be a better way to get default values
     port = ctx.params["port"] if ctx.params.get("port", None) is not None else "8888"
     kernels = running_server(port).running_kernels()
-
     matching_kernels = []
     for kernel in kernels:
         name = Path(kernel["path"]).stem
         if incomplete in name:
             path = kernel["path"]
             kernel_type = kernel["kernel"]["name"]
-            matching_kernels.append((name, f"{kernel_type} at '{path}'"))
+            matching_kernels.append(
+                CompletionItem(name, help=f"{kernel_type} at '{path}'")
+            )
 
     return matching_kernels
 
 
 @cli.command(name="join", help="Join an existing kernel by name")
-@click.argument("name", type=click.STRING, autocompletion=running_arg_complete)
+@click.argument("name", type=click.STRING, shell_complete=running_arg_complete)
 @port
 def join_kernel(name, *, port):
     """Join running kernel by notebook name."""
@@ -162,7 +165,7 @@ def join_kernel(name, *, port):
 
 
 @cli.command(name="kill", help="Kill an running kernel.")
-@click.argument("name", type=click.STRING, autocompletion=running_arg_complete)
+@click.argument("name", type=click.STRING, shell_complete=running_arg_complete)
 @port
 def kill_kernel(name, *, port):
     s = running_server(port)
@@ -173,7 +176,7 @@ def kill_kernel(name, *, port):
 
 
 @cli.command(name="open", help="Open jupyter notebook browser at path.")
-@click.argument("path", required=False)
+@click.argument("path", required=False, type=click.Path())
 @port
 def open_browser(path=None, *, port):
     s = running_server(port)
