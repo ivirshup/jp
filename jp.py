@@ -27,7 +27,7 @@ class ServerInterface(object):
         self._data = data
         self.url = data["url"]
         self.token = data["token"]
-        self.notebook_dir = data["notebook_dir"]
+        self.root_dir = data["root_dir"]
 
     def running_kernels(self):
         full_url = f"{self.url}api/sessions?token={self.token}"
@@ -45,7 +45,7 @@ def running_server(port=None) -> ServerInterface:
 
     if port is None and len(procs) > 1:
         # Heuristic for default home.
-        procs = [x for x in procs if x["notebook_dir"].startswith(user_home)]
+        procs = [x for x in procs if x["root_dir"].startswith(user_home)]
     else:
         procs = [x for x in procs if x["port"] == int(port)]
     if len(procs) == 1:
@@ -184,7 +184,7 @@ def open_browser(path=None, *, port):
         path = "."
 
     abs_path = Path(path).absolute()
-    rel_path = abs_path.relative_to(s.notebook_dir)
+    rel_path = abs_path.relative_to(s.root_dir)
 
     if abs_path.is_dir():
         url = f"{s.url}tree/{rel_path}"
